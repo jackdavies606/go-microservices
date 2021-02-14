@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
@@ -13,10 +12,12 @@ import (
 var db *gorm.DB
 var err error
 
-type Item struct {
+type Order struct {
 	gorm.Model
 	Name string `json:"name"`
-	Price int `json:"price"`
+	ItemId int `json:"itemId"`
+	CustomerId int  `json:"customerId"`
+
 }
 
 func InitialMigration() {
@@ -30,7 +31,7 @@ func InitialMigration() {
 	db.AutoMigrate(&Item{})
 }
 
-func GetItemByName(w http.ResponseWriter, r *http.Request) {
+func GetOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
 		panic("Could not connect to the Item database")
@@ -41,37 +42,11 @@ func GetItemByName(w http.ResponseWriter, r *http.Request) {
 	name := vars["name"]
 
 	var item Item
-	if findErr := db.Where("name = ?", name).First(&item).Error; errors.Is(findErr, gorm.ErrRecordNotFound) {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "The requested item '%v' was not found", name)
-		return
-	}
-
+	db.Where("name = ?", name).Find(&item)
 	json.NewEncoder(w).Encode(item)
 }
 
-func GetItemById(w http.ResponseWriter, r *http.Request) {
-	db, err = gorm.Open("sqlite3", "test.db")
-	if err != nil {
-		panic("Could not connect to the Item database")
-	}
-	defer db.Close()
-
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	var item Item
-
-	if findErr := db.Where("ID = ?", id).First(&item).Error; errors.Is(findErr, gorm.ErrRecordNotFound) {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "The requested item with id '%v' was not found", id)
-		return
-	}
-
-	json.NewEncoder(w).Encode(item)
-}
-
-func GetItems(w http.ResponseWriter, r *http.Request) {
+func GetOrders(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
 		panic("Could not connect to the Item database")
@@ -84,7 +59,7 @@ func GetItems(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(items)
 }
 
-func AddItem(w http.ResponseWriter, r *http.Request) {
+func CreateOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
 		panic("Could not connect to the Item database")
@@ -103,7 +78,7 @@ func AddItem(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "New item added")
 }
 
-func RemoveItem(w http.ResponseWriter, r *http.Request) {
+func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
 		panic("Could not connect to the Item database")

@@ -28,7 +28,7 @@ func InitialMigration() {
 	db.AutoMigrate(&Customer{})
 }
 
-func GetCustomer(w http.ResponseWriter, r *http.Request) {
+func GetCustomerByName(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
 		panic("Could not connect to the Cusomer database")
@@ -40,6 +40,22 @@ func GetCustomer(w http.ResponseWriter, r *http.Request) {
 
 	var customer Customer
 	db.Where("name = ?", name).Find(&customer)
+	json.NewEncoder(w).Encode(customer)
+}
+
+func GetCustomerById(w http.ResponseWriter, r *http.Request) {
+	db, err = gorm.Open("sqlite3", "test.db")
+	if err != nil {
+		panic("Could not connect to the Cusomer database")
+	}
+	defer db.Close()
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+
+	var customer Customer
+	db.Where("ID = ?", id).Find(&customer)
 	json.NewEncoder(w).Encode(customer)
 }
 
