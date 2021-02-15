@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
@@ -39,7 +40,12 @@ func GetCustomerByName(w http.ResponseWriter, r *http.Request) {
 	name := vars["name"]
 
 	var customer Customer
-	db.Where("name = ?", name).Find(&customer)
+	if findErr := db.Where("name = ?", name).First(&customer).Error; errors.Is(findErr, gorm.ErrRecordNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "The requested customer with name '%v' was not found", name)
+		return
+	}
+
 	json.NewEncoder(w).Encode(customer)
 }
 
@@ -53,9 +59,13 @@ func GetCustomerById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-
 	var customer Customer
-	db.Where("ID = ?", id).Find(&customer)
+	if findErr := db.Where("ID = ?", id).First(&customer).Error; errors.Is(findErr, gorm.ErrRecordNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "The requested customer with id '%v' was not found", id)
+		return
+	}
+
 	json.NewEncoder(w).Encode(customer)
 }
 

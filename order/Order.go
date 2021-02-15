@@ -12,61 +12,86 @@ import (
 var db *gorm.DB
 var err error
 
-type Order struct {
+// DB model
+type OrderEntry struct {
 	gorm.Model
-	Name string `json:"name"`
 	ItemId int `json:"itemId"`
 	CustomerId int  `json:"customerId"`
+	OrderId int `json:"orderId"`
+}
 
+// DB model
+type Order struct {
+	gorm.Model
+	CustomerId int  `json:"customerId"`
+	IsComplete bool `json:"isComplete"`
+}
+
+// Response model
+type OrderResponse struct {
+	OrderId uint
+	IsComplete bool
+	CustomerId int
+	Items []Item
+}
+
+// Response Model
+type Item struct {
+	Name string
+	Price int
 }
 
 func InitialMigration() {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
 		fmt.Println(err.Error())
-		panic("failed to connect to Item database")
+		panic("failed to connect to Order database")
 	}
 	defer db.Close()
 
-	db.AutoMigrate(&Item{})
+	db.AutoMigrate(&Order{})
+	db.AutoMigrate(&OrderEntry{})
 }
 
-func GetOrder(w http.ResponseWriter, r *http.Request) {
+// get open order by customer
+func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
-		panic("Could not connect to the Item database")
+		panic("Could not connect to the Order database")
 	}
 	defer db.Close()
 
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	var item Item
-	db.Where("name = ?", name).Find(&item)
-	json.NewEncoder(w).Encode(item)
+	var order OrderEntry
+	db.Where("name = ?", name).Find(&order)
+	json.NewEncoder(w).Encode(order)
 }
 
-func GetOrders(w http.ResponseWriter, r *http.Request) {
+// gets open and closed orders for a customer
+func GetAllCustomerOrders(w http.ResponseWriter, r *http.Request) {
+	db, err = gorm.Open("sqlite3", "test.db")
+	if err != nil {
+		panic("Could not connect to the Order database")
+	}
+	defer db.Close()
+
+	var orders []OrderEntry
+	db.Find(&orders)
+
+	json.NewEncoder(w).Encode(orders)
+}
+
+// create an OrderEntry - creates Order if an open Order does not exist
+func AddToOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
 		panic("Could not connect to the Item database")
 	}
 	defer db.Close()
 
-	var items []Item
-	db.Find(&items)
-
-	json.NewEncoder(w).Encode(items)
-}
-
-func CreateOrder(w http.ResponseWriter, r *http.Request) {
-	db, err = gorm.Open("sqlite3", "test.db")
-	if err != nil {
-		panic("Could not connect to the Item database")
-	}
-	defer db.Close()
-
-	var item Item
+	var item Order
 	err := json.NewDecoder(r.Body).Decode(&item)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -78,6 +103,7 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "New item added")
 }
 
+// deletes Order and related OrderEntry
 func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
@@ -88,9 +114,18 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	var item Item
+	var item Order
 	db.Where("name = ?", name).Find(&item)
 	db.Delete(&item)
 
 	fmt.Fprint(w, "Item deleted")
+}
+
+func createOrderResponse(order Order, items []Item) OrderResponse {
+	return OrderResponse{
+		OrderId: order.ID,
+		IsComplete: order.IsComplete,
+		CustomerId: order.CustomerId,
+		Items: items,
+	}
 }
