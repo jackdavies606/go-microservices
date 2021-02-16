@@ -7,6 +7,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"net/http"
+	"strconv"
 )
 
 var db *gorm.DB
@@ -15,15 +16,15 @@ var err error
 // DB model
 type OrderEntry struct {
 	gorm.Model
-	ItemId int `json:"itemId"`
-	CustomerId int  `json:"customerId"`
-	OrderId int `json:"orderId"`
+	ItemId uint `json:"itemId"`
+	CustomerId uint  `json:"customerId"`
+	OrderId uint `json:"orderId"`
 }
 
 // DB model
 type Order struct {
 	gorm.Model
-	CustomerId int  `json:"customerId"`
+	CustomerId uint  `json:"customerId"`
 	IsComplete bool `json:"isComplete"`
 }
 
@@ -31,7 +32,7 @@ type Order struct {
 type OrderResponse struct {
 	OrderId uint
 	IsComplete bool
-	CustomerId int
+	CustomerId uint
 	Items []Item
 }
 
@@ -62,10 +63,18 @@ func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	vars := mux.Vars(r)
-	name := vars["name"]
+	customerId := vars["customerId"]
 
-	var order OrderEntry
-	db.Where("name = ?", name).Find(&order)
+	// get Order
+	var order Order
+	db.Where("customerId = ? AND IsComplete = ?", customerId, false).Find(&order)
+
+	// get OrderEntry
+	var entries []OrderEntry
+	db.Where("orderId = ?", order.ID).Find(&entries)
+
+	// todo - for each OrderEntry get the item and create an OrderResponse
+
 	json.NewEncoder(w).Encode(order)
 }
 
@@ -91,16 +100,49 @@ func AddToOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	var item Order
-	err := json.NewDecoder(r.Body).Decode(&item)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	vars := mux.Vars(r)
+	customerId := vars["customerId"]
+	itemId := vars["itemId"]
+
+	parsedCustomerId, customerIdParseErr := strconv.ParseUint(customerId, 10, 64)
+	parsedItemId, itemIdParseErr := strconv.ParseUint(itemId, 10, 64)
+	if customerIdParseErr != nil || itemIdParseErr != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Invalid customer id or item id provided")
 		return
 	}
 
-	db.Create(&item)
+	order := findCustomerOrder(customerId, false)
+
+	// create an Order if one does not exist
+	if &order == nil {
+		var newOrder = Order{
+			CustomerId: uint(parsedCustomerId),
+			IsComplete: false,
+		}
+
+		db.Create(newOrder)
+		order = findCustomerOrder(customerId, false)
+	}
+
+	// todo : add a call to the item service to validate ItemId is valid
+	// todo : add a call to the customer service to validate customerId is valid
+
+	// create order entry
+	var orderEntry = OrderEntry{
+		CustomerId: uint(parsedCustomerId),
+		ItemId: uint(parsedItemId),
+		OrderId: order.ID,
+	}
+	db.Create(orderEntry)
 
 	fmt.Fprint(w, "New item added")
+}
+
+func findCustomerOrder(customerId string, isOpen bool) Order {
+	var order Order
+	db.Where("customerId = ? AND isComplete", customerId, isOpen).Find(&order)
+	return order
 }
 
 // deletes Order and related OrderEntry
@@ -112,11 +154,11 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	vars := mux.Vars(r)
-	name := vars["name"]
+	name := vars["customerId"]
 
-	var item Order
-	db.Where("name = ?", name).Find(&item)
-	db.Delete(&item)
+	var order Order
+	db.Where("name = ?", name).Find(&order)
+	db.Delete(&order)
 
 	fmt.Fprint(w, "Item deleted")
 }
