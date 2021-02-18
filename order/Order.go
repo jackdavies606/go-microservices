@@ -67,11 +67,11 @@ func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 
 	// get Order
 	var order Order
-	db.Where("customerId = ? AND IsComplete = ?", customerId, false).Find(&order)
+	db.Where("customer_id = ? AND is_complete = ?", customerId, false).Find(&order)
 
 	// get OrderEntry
 	var entries []OrderEntry
-	db.Where("orderId = ?", order.ID).Find(&entries)
+	db.Where("order_id = ?", order.ID).Find(&entries)
 
 	// todo - for each OrderEntry get the item and create an OrderResponse
 
@@ -96,7 +96,7 @@ func GetAllCustomerOrders(w http.ResponseWriter, r *http.Request) {
 func AddToOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
-		panic("Could not connect to the Item database")
+		panic("Could not connect to the Order database")
 	}
 	defer db.Close()
 
@@ -121,7 +121,7 @@ func AddToOrder(w http.ResponseWriter, r *http.Request) {
 			IsComplete: false,
 		}
 
-		db.Create(newOrder)
+		db.Create(&newOrder)
 		order = findCustomerOrder(customerId, false)
 	}
 
@@ -134,14 +134,14 @@ func AddToOrder(w http.ResponseWriter, r *http.Request) {
 		ItemId: uint(parsedItemId),
 		OrderId: order.ID,
 	}
-	db.Create(orderEntry)
+	db.Table("order_entries").Create(orderEntry)
 
 	fmt.Fprint(w, "New item added")
 }
 
 func findCustomerOrder(customerId string, isOpen bool) Order {
 	var order Order
-	db.Where("customerId = ? AND isComplete", customerId, isOpen).Find(&order)
+	db.Where("customer_id = ? AND is_complete", customerId, isOpen).Find(&order)
 	return order
 }
 
@@ -149,7 +149,7 @@ func findCustomerOrder(customerId string, isOpen bool) Order {
 func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
-		panic("Could not connect to the Item database")
+		panic("Could not connect to the Order database")
 	}
 	defer db.Close()
 
