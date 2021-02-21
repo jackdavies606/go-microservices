@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 var db *gorm.DB
@@ -54,6 +56,7 @@ func InitialMigration() {
 	db.AutoMigrate(&OrderEntry{})
 }
 
+// todo : this method WORKS :)
 // get open order by customer
 func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
@@ -63,11 +66,25 @@ func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	vars := mux.Vars(r)
-	customerId := vars["customerId"]
+	parsedCustomerId, customerIdParseErr := strconv.ParseUint(vars["customerId"], 10, 64)
+
+	if customerIdParseErr != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Invalid customer id provided")
+		return
+	}
+
+	customerId := uint(parsedCustomerId)
 
 	// get Order
 	var order Order
-	db.Where("customer_id = ? AND is_complete = ?", customerId, false).Find(&order)
+	order, err := findCustomerOrder(customerId, false)
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Customer does not have an open Order")
+		return
+	}
 
 	// get OrderEntry
 	var entries []OrderEntry
@@ -78,6 +95,7 @@ func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(order)
 }
 
+// todo : MAKE THIS WORK AS IT SHOULD
 // gets open and closed orders for a customer
 func GetAllCustomerOrders(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
@@ -86,12 +104,24 @@ func GetAllCustomerOrders(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
+	vars := mux.Vars(r)
+	parsedCustomerId, customerIdParseErr := strconv.ParseUint(vars["customerId"], 10, 64)
+
+	if customerIdParseErr != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "Invalid customer id provided")
+		return
+	}
+
+	customerId := uint(parsedCustomerId)
+
 	var orders []OrderEntry
-	db.Find(&orders)
+	err = db.Where("customer_id = ?", customerId).First(&orders).Error
 
 	json.NewEncoder(w).Encode(orders)
 }
 
+// todo : this method WORKS :)
 // create an OrderEntry - creates Order if an open Order does not exist
 func AddToOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
@@ -101,28 +131,35 @@ func AddToOrder(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	vars := mux.Vars(r)
-	customerId := vars["customerId"]
-	itemId := vars["itemId"]
-
-	parsedCustomerId, customerIdParseErr := strconv.ParseUint(customerId, 10, 64)
-	parsedItemId, itemIdParseErr := strconv.ParseUint(itemId, 10, 64)
+	parsedCustomerId, customerIdParseErr := strconv.ParseUint(vars["customerId"], 10, 64)
+	parsedItemId, itemIdParseErr := strconv.ParseUint(vars["itemId"], 10, 64)
 	if customerIdParseErr != nil || itemIdParseErr != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Invalid customer id or item id provided")
 		return
 	}
 
-	order := findCustomerOrder(customerId, false)
+	customerId := uint(parsedCustomerId)
+	itemId := uint(parsedItemId)
+
+	order, err := findCustomerOrder(customerId, false)
 
 	// create an Order if one does not exist
-	if &order == nil {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		var newOrder = Order{
-			CustomerId: uint(parsedCustomerId),
+			CustomerId: customerId,
 			IsComplete: false,
 		}
 
 		db.Create(&newOrder)
-		order = findCustomerOrder(customerId, false)
+		time.Sleep(1000)
+		order, err = findCustomerOrder(newOrder.CustomerId, false)
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Failed create customer Order")
+			return
+		}
 	}
 
 	// todo : add a call to the item service to validate ItemId is valid
@@ -130,21 +167,22 @@ func AddToOrder(w http.ResponseWriter, r *http.Request) {
 
 	// create order entry
 	var orderEntry = OrderEntry{
-		CustomerId: uint(parsedCustomerId),
-		ItemId: uint(parsedItemId),
+		CustomerId: customerId,
+		ItemId: itemId,
 		OrderId: order.ID,
 	}
-	db.Table("order_entries").Create(orderEntry)
+	db.Table("order_entries").Create(&orderEntry)
 
 	fmt.Fprint(w, "New item added")
 }
 
-func findCustomerOrder(customerId string, isOpen bool) Order {
+func findCustomerOrder(customerId uint, isOpen bool) (Order, error) {
 	var order Order
-	db.Where("customer_id = ? AND is_complete", customerId, isOpen).Find(&order)
-	return order
+	err := db.Where("customer_id = ? AND is_complete = ?", customerId, isOpen).First(&order).Error
+	return order, err
 }
 
+// todo : this method WORKS :)
 // deletes Order and related OrderEntry
 func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
@@ -154,11 +192,26 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	vars := mux.Vars(r)
-	name := vars["customerId"]
+	customerId := vars["customerId"]
 
 	var order Order
-	db.Where("name = ?", name).Find(&order)
-	db.Delete(&order)
+	err := db.Where("customer_id = ?", customerId).First(&order).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Customer does not have Order to delete")
+		return
+	}
+
+	err = db.Where("customer_id = ? AND is_complete = ?", customerId, false).Delete(&order).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Failed to delete Order")
+		return
+	}
+
+	// todo : cleanup related OrderEntries
 
 	fmt.Fprint(w, "Item deleted")
 }

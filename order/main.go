@@ -9,7 +9,7 @@ import (
 func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 
-	router.HandleFunc("/order/{customerId}", GetAllCustomerOrders).Methods("GET")
+	router.HandleFunc("/orders/{customerId}", GetAllCustomerOrders).Methods("GET")
 	router.HandleFunc("/order/{customerId}", GetCustomersOpenOrder).Methods("GET")
 	router.HandleFunc("/order/{customerId}/item/{itemId}", AddToOrder).Methods("POST")
 	router.HandleFunc("/order/{customerId}", CancelOrder).Methods("DELETE")
