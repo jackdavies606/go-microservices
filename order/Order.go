@@ -56,7 +56,7 @@ func InitialMigration() {
 	db.AutoMigrate(&OrderEntry{})
 }
 
-// todo : this method WORKS :)
+// todo : work to do
 // get open order by customer
 func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
@@ -88,14 +88,14 @@ func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 
 	// get OrderEntry
 	var entries []OrderEntry
-	db.Where("order_id = ?", order.ID).Find(&entries)
+	db.Where("order_id = ? ", order.ID).Find(&entries)
 
 	// todo - for each OrderEntry get the item and create an OrderResponse
+
 
 	json.NewEncoder(w).Encode(order)
 }
 
-// todo : MAKE THIS WORK AS IT SHOULD
 // gets open and closed orders for a customer
 func GetAllCustomerOrders(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")

@@ -15,7 +15,7 @@ func handleRequests() {
 	router.HandleFunc("/item/name/{name}", RemoveItem).Methods("DELETE")
 	router.HandleFunc("/item", AddItem).Methods("POST")
 
-	log.Fatal(http.ListenAndServe(":8081", router))
+	log.Fatal(http.ListenAndServe(":8080", router))
 }
 
 func main() {

@@ -14,7 +14,7 @@ func handleRequests() {
 	router.HandleFunc("/order/{customerId}/item/{itemId}", AddToOrder).Methods("POST")
 	router.HandleFunc("/order/{customerId}", CancelOrder).Methods("DELETE")
 
-	log.Fatal(http.ListenAndServe(":8081", router))
+	log.Fatal(http.ListenAndServe(":8080", router))
 }
 
 func main() {

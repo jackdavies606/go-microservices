@@ -13,7 +13,7 @@ func handleRequests() {
 	router.HandleFunc("/customer/id/{id}", GetCustomerById).Methods("GET")
 	router.HandleFunc("/customer/name/{name}", AddCustomer).Methods("POST")
 	router.HandleFunc("/customer/name/{name}", RemoveCustomer).Methods("DELETE")
-	log.Fatal(http.ListenAndServe(":8081", router))
+	log.Fatal(http.ListenAndServe(":8080", router))
 }
 
 func main() {
