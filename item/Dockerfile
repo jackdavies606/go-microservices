@@ -4,7 +4,9 @@ FROM golang:1.15
 WORKDIR $GOPATH/src/microservices/item
 
 # Copy everything from the current directory to the PWD (Present Working Directory) inside the container
-COPY . .
+COPY ./Item.go .
+COPY ./main.go .
+COPY ./items.sql .
 
 # Download all the dependencies
 RUN go get -d -v ./...

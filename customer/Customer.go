@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -27,6 +28,15 @@ func InitialMigration() {
 	defer db.Close()
 
 	db.AutoMigrate(&Customer{})
+
+	// TODO : use this to run the sql file
+	query, err := ioutil.ReadFile("path/to/database.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err := db.Exec(query); err != nil {
+		panic(err)
+	}
 }
 
 // This method should only be callable by an admin user
