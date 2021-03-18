@@ -9,6 +9,7 @@ import (
 func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 
+	router.HandleFunc("/customers", GetCustomers).Methods("GET")
 	router.HandleFunc("/customer/name/{name}", GetCustomerByName).Methods("GET")
 	router.HandleFunc("/customer/id/{id}", GetCustomerById).Methods("GET")
 	router.HandleFunc("/customer/name/{name}", AddCustomer).Methods("POST")

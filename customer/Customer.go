@@ -29,6 +29,20 @@ func InitialMigration() {
 	db.AutoMigrate(&Customer{})
 }
 
+// This method should only be callable by an admin user
+func GetCustomers(w http.ResponseWriter, r *http.Request)  {
+	db, err = gorm.Open("sqlite3", "test.db")
+	if err != nil {
+		panic("Could not connect to the Cusomer database")
+	}
+	defer db.Close()
+
+	var customers []Customer
+	db.Find(&customers)
+
+	json.NewEncoder(w).Encode(customers)
+}
+
 func GetCustomerByName(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {

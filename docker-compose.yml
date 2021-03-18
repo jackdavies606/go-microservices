@@ -2,13 +2,20 @@ version: "3.9"
 services:
   customer:
     image: customer-service:latest
+    build: ./customer
     ports:
       - "8080:8080"
   item:
     image: item-service:latest
+    build: ./item
     ports:
       - "8081:8080"
   order:
     image: order-service:latest
+    build: ./order
     ports:
       - "8082:8080"
+    environment:
+      - ITEM_SERVICE_URL=http://172.17.0.1:8081
+
+# todo : add a startup script to import some data from a json file - doesn't have to be much..

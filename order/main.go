@@ -9,10 +9,10 @@ import (
 func handleRequests() {
 	router := mux.NewRouter().StrictSlash(true)
 
-	router.HandleFunc("/orders/{customerId}", GetAllCustomerOrders).Methods("GET")
-	router.HandleFunc("/order/{customerId}", GetCustomersOpenOrder).Methods("GET")
-	router.HandleFunc("/order/{customerId}/item/{itemId}", AddToOrder).Methods("POST")
-	router.HandleFunc("/order/{customerId}", CancelOrder).Methods("DELETE")
+	router.HandleFunc("/orders/customer/{customerId}", GetAllCustomerOrders).Methods("GET")
+	router.HandleFunc("/order/customer/{customerId}", GetCustomersOpenOrder).Methods("GET")
+	router.HandleFunc("/order/customer/{customerId}/item/{itemId}", AddToOrder).Methods("POST")
+	router.HandleFunc("/order/customer/{customerId}", CancelOrder).Methods("DELETE")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

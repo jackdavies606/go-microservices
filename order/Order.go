@@ -7,7 +7,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 )
@@ -56,7 +58,6 @@ func InitialMigration() {
 	db.AutoMigrate(&OrderEntry{})
 }
 
-// todo : work to do
 // get open order by customer
 func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
@@ -90,10 +91,28 @@ func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 	var entries []OrderEntry
 	db.Where("order_id = ? ", order.ID).Find(&entries)
 
-	// todo - for each OrderEntry get the item and create an OrderResponse
+	var items []Item
+	for _, entry := range entries {
+		itemIdString := strconv.Itoa(int(entry.ItemId))
+		item, err := getItem(w, itemIdString)
 
+		if err != nil {
+			fmt.Fprintf(w, "Failed to retreive item for order.")
+			return
+		}
 
-	json.NewEncoder(w).Encode(order)
+		fmt.Printf("Adding Item '%s' with price '%s' to Items", item.Name, strconv.Itoa(item.Price))
+		items = append(items, item)
+	}
+
+	var response = OrderResponse {
+		OrderId:    order.ID,
+		IsComplete: order.IsComplete,
+		CustomerId: order.CustomerId,
+		Items: items,
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
 // gets open and closed orders for a customer
@@ -121,7 +140,6 @@ func GetAllCustomerOrders(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(orders)
 }
 
-// todo : this method WORKS :)
 // create an OrderEntry - creates Order if an open Order does not exist
 func AddToOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
@@ -162,8 +180,12 @@ func AddToOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// todo : add a call to the item service to validate ItemId is valid
-	// todo : add a call to the customer service to validate customerId is valid
+	itemIdString := strconv.Itoa(int(itemId))
+	_, err = getItem(w, itemIdString)
+	if err != nil {
+		fmt.Fprintf(w, "Could not retrieve item to add to order with itemId '%s'", itemIdString)
+		return
+	}
 
 	// create order entry
 	var orderEntry = OrderEntry{
@@ -214,6 +236,46 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	// todo : cleanup related OrderEntries
 
 	fmt.Fprint(w, "Item deleted")
+}
+
+func getItem(w http.ResponseWriter, itemId string) (Item, error) {
+	itemUrl := os.Getenv("ITEM_SERVICE_URL")
+	requestUrl := itemUrl + "/item/id/" + itemId
+
+	fmt.Printf("Making a request to: %s", requestUrl)
+	resp, err := http.Get(requestUrl)
+	var item Item
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Printf("Request to item service failed for itemId '%s': ", itemId)
+		return item, err
+	} else if resp.Status != "200 OK" {
+		w.WriteHeader(http.StatusNotFound)
+		err = errors.New("item could not be found")
+		fmt.Printf("The response status on the request for itemId '%s' was not 200: %s. %s", itemId, resp.Status, err)
+		return item, err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Printf("Could not read the response body for itemId '%s'. %s", itemId, err)
+		return item, err
+	}
+
+	err = json.Unmarshal(body, &item)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Printf("Could not create Item from response body for itemId %s. %s", itemId, err)
+		return item, err
+	}
+
+	fmt.Printf("Successfully retrieved and created item with itemId %s", itemId)
+
+	return item, nil
 }
 
 func createOrderResponse(order Order, items []Item) OrderResponse {
