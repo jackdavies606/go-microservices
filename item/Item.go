@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"net/http"
+	"os"
+	"strconv"
 )
 
 var db *gorm.DB
@@ -28,6 +31,45 @@ func InitialMigration() {
 	defer db.Close()
 
 	db.AutoMigrate(&Item{})
+
+	lines, err := ReadCsv("./items.csv")
+	if err != nil {
+		panic(err)
+	}
+
+	populateDatabase(lines)
+}
+
+
+func populateDatabase(lines [][]string) {
+	for _, line := range lines {
+		var price int64
+		if price, err = strconv.ParseInt(line[1], 10, 64); err != nil {
+			panic(err)
+		}
+
+		item := Item{
+			Name: line[0],
+			Price: int(price),
+		}
+		fmt.Printf("Read: Name %s, Price %s", item.Name, strconv.Itoa(item.Price))
+		db.Create(&item)
+	}
+}
+
+func ReadCsv(csvPath string) ([][]string, error){
+	f, err := os.Open(csvPath)
+	if err != nil {
+		return [][]string{}, err
+	}
+	defer f.Close()
+
+	lines, err := csv.NewReader(f).ReadAll()
+	if err != nil {
+		return [][]string{}, err
+	}
+
+	return lines, nil
 }
 
 func GetItemByName(w http.ResponseWriter, r *http.Request) {

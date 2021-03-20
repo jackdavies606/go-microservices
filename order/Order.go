@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,6 +57,52 @@ func InitialMigration() {
 
 	db.AutoMigrate(&Order{})
 	db.AutoMigrate(&OrderEntry{})
+
+	lines, err := ReadCsv("./orders.csv")
+	if err != nil {
+		panic(err)
+	}
+
+	populateDatabase(lines)
+}
+
+func populateDatabase(lines [][]string) {
+	for _, line := range lines {
+		var customerId uint64
+		if customerId, err = strconv.ParseUint(line[0], 10, 64); err != nil {
+			panic(err)
+		}
+
+		var isComplete bool
+		if isComplete, err = strconv.ParseBool(line[1]); err != nil {
+			panic(err)
+		}
+
+		order := Order{
+			CustomerId: uint(customerId),
+			IsComplete: isComplete,
+		}
+
+		fmt.Printf("Read: CustomerId %s, IsComplete %s", strconv.Itoa(int(order.CustomerId)),
+			strconv.FormatBool(order.IsComplete))
+
+		db.Create(&order)
+	}
+}
+
+func ReadCsv(csvPath string) ([][]string, error){
+	f, err := os.Open(csvPath)
+	if err != nil {
+		return [][]string{}, err
+	}
+	defer f.Close()
+
+	lines, err := csv.NewReader(f).ReadAll()
+	if err != nil {
+		return [][]string{}, err
+	}
+
+	return lines, nil
 }
 
 // get open order by customer

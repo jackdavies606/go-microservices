@@ -1,14 +1,15 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"io/ioutil"
 	"net/http"
+	"os"
 )
 
 var db *gorm.DB
@@ -29,14 +30,37 @@ func InitialMigration() {
 
 	db.AutoMigrate(&Customer{})
 
-	// TODO : use this to run the sql file
-	query, err := ioutil.ReadFile("path/to/database.sql")
+	lines, err := ReadCsv("./customers.csv")
 	if err != nil {
 		panic(err)
 	}
-	if _, err := db.Exec(query); err != nil {
-		panic(err)
+
+	populateDatabase(lines)
+}
+
+func populateDatabase(lines [][]string) {
+	for _, line := range lines {
+		customer := Customer{
+			Name: line[0],
+		}
+		fmt.Printf("Read: %s", customer.Name)
+		db.Create(&customer)
 	}
+}
+
+func ReadCsv(csvPath string) ([][]string, error){
+	f, err := os.Open(csvPath)
+	if err != nil {
+		return [][]string{}, err
+	}
+	defer f.Close()
+
+	lines, err := csv.NewReader(f).ReadAll()
+	if err != nil {
+		return [][]string{}, err
+	}
+
+	return lines, nil
 }
 
 // This method should only be callable by an admin user

@@ -6,7 +6,7 @@ WORKDIR $GOPATH/src/microservices/customer
 # Copy everything from the current directory to the PWD (Present Working Directory) inside the container
 COPY ./Customer.go .
 COPY ./main.go .
-COPY ./customers.sql .
+COPY customers.csv .
 
 # Download all the dependencies
 RUN go get -d -v ./...
