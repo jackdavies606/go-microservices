@@ -16,7 +16,7 @@ var db *gorm.DB
 var err error
 
 type Customer struct {
-	gorm.Model
+	ID int `json:"id" gorm:"primaryKey"` // todo: add to csv
 	Name string `json:"name"`
 }
 
@@ -32,6 +32,7 @@ func InitialMigration() {
 
 	lines, err := ReadCsv("./customers.csv")
 	if err != nil {
+		fmt.Println("Failed to read ./customers.csv")
 		panic(err)
 	}
 

@@ -17,7 +17,7 @@ var db *gorm.DB
 var err error
 
 type Item struct {
-	gorm.Model
+	ID int `json:"id" gorm:"primaryKey"`
 	Name string `json:"name"`
 	Price int `json:"price"`
 }
@@ -32,8 +32,9 @@ func InitialMigration() {
 
 	db.AutoMigrate(&Item{})
 
-	lines, err := ReadCsv("./items.csv")
+	lines, err := ReadCsv("items.csv")
 	if err != nil {
+		fmt.Println("Failed to read items.csv")
 		panic(err)
 	}
 
@@ -43,15 +44,22 @@ func InitialMigration() {
 
 func populateDatabase(lines [][]string) {
 	for _, line := range lines {
-		var price int64
-		if price, err = strconv.ParseInt(line[1], 10, 64); err != nil {
+		var id int
+		if id, err = strconv.Atoi(line[0]); err != nil {
+			panic(err)
+		}
+
+		var price int
+		if price, err = strconv.Atoi(line[2]); err != nil {
 			panic(err)
 		}
 
 		item := Item{
-			Name: line[0],
-			Price: int(price),
+			ID: id,
+			Name: line[1],
+			Price: price,
 		}
+
 		fmt.Printf("Read: Name %s, Price %s", item.Name, strconv.Itoa(item.Price))
 		db.Create(&item)
 	}

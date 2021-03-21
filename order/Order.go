@@ -20,24 +20,24 @@ var err error
 
 // DB model
 type OrderEntry struct {
-	gorm.Model
-	ItemId uint `json:"itemId"`
-	CustomerId uint  `json:"customerId"`
-	OrderId uint `json:"orderId"`
+	ID int `json:"id" gorm:"primaryKey"`
+	ItemId int `json:"itemId"`
+	CustomerId int  `json:"customerId"`
+	OrderId int `json:"orderId"`
 }
 
 // DB model
 type Order struct {
-	gorm.Model
-	CustomerId uint  `json:"customerId"`
+	ID int `json:"id" gorm:"primaryKey"`
+	CustomerId int  `json:"customerId"`
 	IsComplete bool `json:"isComplete"`
 }
 
 // Response model
 type OrderResponse struct {
-	OrderId uint
+	OrderId int
 	IsComplete bool
-	CustomerId uint
+	CustomerId int
 	Items []Item
 }
 
@@ -68,8 +68,8 @@ func InitialMigration() {
 
 func populateDatabase(lines [][]string) {
 	for _, line := range lines {
-		var customerId uint64
-		if customerId, err = strconv.ParseUint(line[0], 10, 64); err != nil {
+		var customerId int
+		if customerId, err = strconv.Atoi(line[0]); err != nil {
 			panic(err)
 		}
 
@@ -79,7 +79,7 @@ func populateDatabase(lines [][]string) {
 		}
 
 		order := Order{
-			CustomerId: uint(customerId),
+			CustomerId: customerId,
 			IsComplete: isComplete,
 		}
 
@@ -114,7 +114,7 @@ func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	vars := mux.Vars(r)
-	parsedCustomerId, customerIdParseErr := strconv.ParseUint(vars["customerId"], 10, 64)
+	parsedCustomerId, customerIdParseErr := strconv.Atoi(vars["customerId"])
 
 	if customerIdParseErr != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -122,11 +122,9 @@ func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	customerId := uint(parsedCustomerId)
-
 	// get Order
 	var order Order
-	order, err := findCustomerOrder(customerId, false)
+	order, err := findCustomerOrder(parsedCustomerId, false)
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		w.WriteHeader(http.StatusNotFound)
@@ -196,16 +194,16 @@ func AddToOrder(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	vars := mux.Vars(r)
-	parsedCustomerId, customerIdParseErr := strconv.ParseUint(vars["customerId"], 10, 64)
-	parsedItemId, itemIdParseErr := strconv.ParseUint(vars["itemId"], 10, 64)
+	parsedCustomerId, customerIdParseErr := strconv.Atoi(vars["customerId"])
+	parsedItemId, itemIdParseErr := strconv.Atoi(vars["itemId"] )
 	if customerIdParseErr != nil || itemIdParseErr != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, "Invalid customer id or item id provided")
 		return
 	}
 
-	customerId := uint(parsedCustomerId)
-	itemId := uint(parsedItemId)
+	customerId := parsedCustomerId
+	itemId := parsedItemId
 
 	order, err := findCustomerOrder(customerId, false)
 
@@ -245,7 +243,7 @@ func AddToOrder(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "New item added")
 }
 
-func findCustomerOrder(customerId uint, isOpen bool) (Order, error) {
+func findCustomerOrder(customerId int, isOpen bool) (Order, error) {
 	var order Order
 	err := db.Where("customer_id = ? AND is_complete = ?", customerId, isOpen).First(&order).Error
 	return order, err
