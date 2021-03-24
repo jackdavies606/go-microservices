@@ -22,7 +22,6 @@ var err error
 type OrderEntry struct {
 	ID int `json:"id" gorm:"primaryKey"`
 	ItemId int `json:"itemId"`
-	CustomerId int  `json:"customerId"`
 	OrderId int `json:"orderId"`
 }
 
@@ -225,7 +224,7 @@ func AddToOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	itemIdString := strconv.Itoa(int(itemId))
+	itemIdString := strconv.Itoa(itemId)
 	_, err = getItem(w, itemIdString)
 	if err != nil {
 		fmt.Fprintf(w, "Could not retrieve item to add to order with itemId '%s'", itemIdString)
@@ -234,7 +233,6 @@ func AddToOrder(w http.ResponseWriter, r *http.Request) {
 
 	// create order entry
 	var orderEntry = OrderEntry{
-		CustomerId: customerId,
 		ItemId: itemId,
 		OrderId: order.ID,
 	}
