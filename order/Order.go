@@ -57,35 +57,74 @@ func InitialMigration() {
 	db.AutoMigrate(&Order{})
 	db.AutoMigrate(&OrderEntry{})
 
-	lines, err := ReadCsv("./orders.csv")
+	orderLines, err := ReadCsv("orders.csv")
 	if err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
+	populateOrdersDatabase(orderLines)
 
-	populateDatabase(lines)
+	orderEntryLines, err := ReadCsv("order_entries.csv")
+	if err != nil {
+		fmt.Println(err)
+		panic(err)
+	}
+	populateOrderEntriesDatabase(orderEntryLines)
 }
 
-func populateDatabase(lines [][]string) {
+func populateOrdersDatabase(lines [][]string) {
 	for _, line := range lines {
+		var id int
+		if id, err = strconv.Atoi(line[0]); err != nil {
+			panic(err)
+		}
+
 		var customerId int
-		if customerId, err = strconv.Atoi(line[0]); err != nil {
+		if customerId, err = strconv.Atoi(line[1]); err != nil {
 			panic(err)
 		}
 
 		var isComplete bool
-		if isComplete, err = strconv.ParseBool(line[1]); err != nil {
+		if isComplete, err = strconv.ParseBool(line[2]); err != nil {
 			panic(err)
 		}
 
 		order := Order{
+			ID: id,
 			CustomerId: customerId,
 			IsComplete: isComplete,
 		}
 
-		fmt.Printf("Read: CustomerId %s, IsComplete %s", strconv.Itoa(int(order.CustomerId)),
+		fmt.Printf("Read: CustomerId %s, IsComplete %s", strconv.Itoa(order.CustomerId),
 			strconv.FormatBool(order.IsComplete))
 
 		db.Create(&order)
+	}
+}
+
+func populateOrderEntriesDatabase(lines [][]string) {
+	for _, line := range lines {
+		var id int
+		if id, err = strconv.Atoi(line[0]); err != nil {
+			panic(err)
+		}
+
+		var itemId int
+		if itemId, err = strconv.Atoi(line[1]); err != nil {
+			panic(err)
+		}
+
+		var orderId int
+		if orderId, err = strconv.Atoi(line[2]); err != nil {
+			panic(err)
+		}
+
+		orderEntry := OrderEntry {
+			ID: id,
+			ItemId: itemId,
+			OrderId: orderId,
+		}
+		db.Create(&orderEntry)
 	}
 }
 
@@ -137,7 +176,7 @@ func GetCustomersOpenOrder(w http.ResponseWriter, r *http.Request) {
 
 	var items []Item
 	for _, entry := range entries {
-		itemIdString := strconv.Itoa(int(entry.ItemId))
+		itemIdString := strconv.Itoa(entry.ItemId)
 		item, err := getItem(w, itemIdString)
 
 		if err != nil {
@@ -247,7 +286,6 @@ func findCustomerOrder(customerId int, isOpen bool) (Order, error) {
 	return order, err
 }
 
-// todo : this method WORKS :)
 // deletes Order and related OrderEntry
 func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	db, err = gorm.Open("sqlite3", "test.db")
@@ -260,11 +298,11 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	customerId := vars["customerId"]
 
 	var order Order
-	err := db.Where("customer_id = ?", customerId).First(&order).Error
+	err := db.Where("customer_id = ? AND is_complete = ?", customerId, false).First(&order).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Customer does not have Order to delete")
+		fmt.Fprintf(w, "Customer does not have an incomplete Order to delete")
 		return
 	}
 
@@ -276,9 +314,10 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// todo : cleanup related OrderEntries
+	// deleting all orderEntries related to order
+	db.Where("order_id = ?", order.ID).Delete(OrderEntry{})
 
-	fmt.Fprint(w, "Item deleted")
+	fmt.Fprint(w, "Order deleted")
 }
 
 func getItem(w http.ResponseWriter, itemId string) (Item, error) {
