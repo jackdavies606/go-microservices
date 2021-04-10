@@ -47,6 +47,7 @@ type Item struct {
 }
 
 func InitialMigration() {
+
 	db, err = gorm.Open("sqlite3", "test.db")
 	if err != nil {
 		fmt.Println(err.Error())
@@ -218,7 +219,7 @@ func GetAllCustomerOrders(w http.ResponseWriter, r *http.Request) {
 	customerId := uint(parsedCustomerId)
 
 	var orders []OrderEntry
-	err = db.Where("customer_id = ?", customerId).First(&orders).Error
+	err = db.Table("orders").Where("customer_id = ?", customerId).First(&orders).Error
 
 	json.NewEncoder(w).Encode(orders)
 }

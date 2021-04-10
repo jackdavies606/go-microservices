@@ -1,0 +1,6 @@
+container:
+  name: item
+  port: 8080
+  image: jackdavies606/item-service
+  tag: latest
+replicas: 1

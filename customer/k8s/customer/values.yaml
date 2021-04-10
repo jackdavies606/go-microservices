@@ -1,0 +1,6 @@
+container:
+  name: customer
+  port: 8080
+  image: jackdavies606/customer-service
+  tag: latest
+replicas: 1

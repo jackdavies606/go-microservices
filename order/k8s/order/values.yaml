@@ -1,0 +1,6 @@
+container:
+  name: order
+  port: 8080
+  image: jackdavies606/order-service
+  tag: latest
+replicas: 1

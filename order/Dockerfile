@@ -7,6 +7,7 @@ WORKDIR $GOPATH/src/microservices/order
 COPY ./Order.go .
 COPY ./main.go .
 COPY orders.csv .
+COPY order_entries.csv .
 
 # Download all the dependencies
 RUN go get -d -v ./...
